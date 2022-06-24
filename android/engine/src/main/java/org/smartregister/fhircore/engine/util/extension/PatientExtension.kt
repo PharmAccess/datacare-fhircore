@@ -209,6 +209,13 @@ fun Enumerations.AdministrativeGender.translateGender(context: Context) =
     else -> context.getString(R.string.unknown)
   }
 
+fun Patient.extractSecondaryIdentifier(): String? {
+  if (this.hasIdentifier()) {
+    return this.identifier.firstOrNull { it.use == Identifier.IdentifierUse.SECONDARY }?.value
+  }
+  return null
+}
+
 fun Patient.extractOfficialIdentifier(): String? =
   if (this.hasIdentifier())
     this.identifier.firstOrNull { it.use == Identifier.IdentifierUse.OFFICIAL }?.value
@@ -217,9 +224,19 @@ fun Patient.extractOfficialIdentifier(): String? =
 fun Patient.extractHealthStatusFromMeta(filterTag: String): HealthStatus {
   return try {
     val tagList = this.meta.tag.filter { it.system.equals(filterTag, true) }
-    if (filterTag.isEmpty() || tagList.isEmpty() || tagList[0].code.isEmpty())
+    if (filterTag.isEmpty() ||
+        tagList.isEmpty() ||
+        tagList[0].code == null ||
+        tagList[0].code.isEmpty()
+    )
       return HealthStatus.DEFAULT
-    HealthStatus.valueOf(tagList[0].code?.uppercase(Locale.getDefault())?.replace("-", "_") ?: "")
+    HealthStatus.valueOf(tagList[0].code!!.uppercase(Locale.getDefault()).replace("-", "_")).apply {
+      display =
+        when (this) {
+          HealthStatus.NEWLY_DIAGNOSED_CLIENT, HealthStatus.CLIENT_ALREADY_ON_ART -> "ART Client"
+          else -> tagList[0].display
+        }
+    }
   } catch (e: Exception) {
     Timber.e(e)
     HealthStatus.DEFAULT

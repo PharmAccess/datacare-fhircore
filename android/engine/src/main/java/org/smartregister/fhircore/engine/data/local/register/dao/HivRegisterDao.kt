@@ -23,10 +23,8 @@ import com.google.android.fhir.search.search
 import javax.inject.Inject
 import javax.inject.Singleton
 import org.hl7.fhir.r4.model.CarePlan
-import org.hl7.fhir.r4.model.Group
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.Task
-import org.smartregister.fhircore.engine.appfeature.model.HealthModule.FAMILY
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.configuration.app.AppConfigClassification
 import org.smartregister.fhircore.engine.configuration.app.ApplicationConfiguration
@@ -40,8 +38,8 @@ import org.smartregister.fhircore.engine.util.extension.extractGeneralPractition
 import org.smartregister.fhircore.engine.util.extension.extractHealthStatusFromMeta
 import org.smartregister.fhircore.engine.util.extension.extractName
 import org.smartregister.fhircore.engine.util.extension.extractOfficialIdentifier
+import org.smartregister.fhircore.engine.util.extension.extractSecondaryIdentifier
 import org.smartregister.fhircore.engine.util.extension.extractTelecom
-import org.smartregister.fhircore.engine.util.extension.filterBy
 import org.smartregister.fhircore.engine.util.extension.toAgeDisplay
 
 @Singleton
@@ -81,12 +79,13 @@ constructor(
         healthStatus =
           patient.extractHealthStatusFromMeta(
             getApplicationConfiguration().patientTypeFilterTagViaMetaCodingSystem
-          )
+          ),
+        identifier = patient.extractOfficialIdentifier() ?: patient.extractSecondaryIdentifier()
       )
     }
   }
 
-  override suspend fun loadProfileData(appFeatureName: String?, resourceId: String): ProfileData? {
+  override suspend fun loadProfileData(appFeatureName: String?, resourceId: String): ProfileData {
     val patient = defaultRepository.loadResource<Patient>(resourceId)!!
 
     return ProfileData.HivProfileData(
@@ -117,10 +116,9 @@ constructor(
   }
 
   override suspend fun countRegisterData(appFeatureName: String?): Long {
-    // TODO fix this workaround for groups count
     return fhirEngine
-      .search<Group> { getRegisterDataFilters(FAMILY.name).forEach { filterBy(it) } }
-      .filter { it.active && !it.name.isNullOrEmpty() }
+      .search<Patient> { filter(Patient.ACTIVE, { value = of(true) }) }
+      .filter { it.gender != null && it.active && !it.name.isNullOrEmpty() }
       .size
       .toLong()
   }
