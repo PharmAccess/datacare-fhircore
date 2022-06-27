@@ -66,9 +66,11 @@ constructor(
         from = currentPage * PaginationConstant.DEFAULT_PAGE_SIZE
       }
 
-    return patients.map { patient ->
+    return patients.filterNot { it.gender == null }.map { patient ->
       RegisterData.HivRegisterData(
         logicalId = patient.logicalId,
+        identifier = patient.identifierFirstRep.value
+            ?: patient.extractOfficialIdentifier() ?: patient.extractSecondaryIdentifier(),
         name = patient.extractName(),
         gender = patient.gender,
         age = patient.birthDate.toAgeDisplay(),
@@ -79,8 +81,7 @@ constructor(
         healthStatus =
           patient.extractHealthStatusFromMeta(
             getApplicationConfiguration().patientTypeFilterTagViaMetaCodingSystem
-          ),
-        identifier = patient.extractOfficialIdentifier() ?: patient.extractSecondaryIdentifier()
+          )
       )
     }
   }
@@ -92,14 +93,14 @@ constructor(
       logicalId = patient.logicalId,
       birthdate = patient.birthDate,
       name = patient.extractName(),
-      identifier = patient.extractOfficialIdentifier(),
+      identifier = patient.identifierFirstRep.value
+          ?: patient.extractOfficialIdentifier() ?: patient.extractSecondaryIdentifier(),
       gender = patient.gender,
       age = patient.birthDate.toAgeDisplay(),
       address = patient.extractAddress(),
       phoneContacts = patient.extractTelecom(),
       chwAssigned = patient.generalPractitionerFirstRep,
       showIdentifierInProfile = true,
-      showDOBInProfile = false,
       healthStatus =
         patient.extractHealthStatusFromMeta(
           getApplicationConfiguration().patientTypeFilterTagViaMetaCodingSystem
